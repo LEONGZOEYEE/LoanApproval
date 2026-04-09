@@ -19,8 +19,11 @@ def load_data():
     df = pd.read_csv("Loan Dataset.csv", index_col=0)
 
     df["Debt_Income_Ratio"] = df["Outstanding_Debt"] / (df["Annual_Income"] + 1)
-
+    
     for col in df.columns:
+        # Try converting to numeric if possible
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+    
         if df[col].dtype == "object":
             df[col].fillna(df[col].mode()[0], inplace=True)
         else:
