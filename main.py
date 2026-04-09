@@ -95,7 +95,6 @@ def risk_score(df):
 
     return min(score, 100)
 
-
 st.markdown("""
 <style>
 .big-title {
@@ -170,7 +169,7 @@ def main():
     # INPUT SECTION
     # =========================
     st.markdown("### 📝 Applicant Information")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) 
 
     with st.container():
         with st.form("form"):
@@ -215,7 +214,9 @@ def main():
         # =========================
         # RESULT SECTION
         # =========================
+        st.markdown('<div class="section">', unsafe_allow_html=True)
         st.markdown("### 🔍 Prediction Result")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         c1.metric("Approval Probability", f"{prob*100:.2f}%")
