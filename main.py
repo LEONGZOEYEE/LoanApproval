@@ -18,23 +18,28 @@ from sklearn.neural_network import MLPClassifier
 def load_data():
     df = pd.read_csv("Loan Dataset.csv", index_col=0)
 
-    df["Debt_Income_Ratio"] = df["Outstanding_Debt"] / (df["Annual_Income"] + 1)
-    
-    for col in df.columns:
-        # Try converting to numeric if possible
-        df[col] = pd.to_numeric(df[col], errors='ignore')
-    
-        if df[col].dtype == "object":
-            df[col].fillna(df[col].mode()[0], inplace=True)
-        else:
-            df[col].fillna(df[col].mean(), inplace=True)
+    # Identify numeric columns
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    categorical_cols = df.select_dtypes(include=['object']).columns
 
+    # Fix numeric columns
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+        df[col].fillna(df[col].mean(), inplace=True)
+
+    # Fix categorical columns
+    for col in categorical_cols:
+        df[col].fillna(df[col].mode()[0], inplace=True)
+
+    # Create feature AFTER cleaning
+    df["Debt_Income_Ratio"] = df["Outstanding_Debt"] / (df["Annual_Income"] + 1)
+
+    # Encode categorical
     le_dict = {}
-    for col in df.columns:
-        if df[col].dtype == "object":
-            le = LabelEncoder()
-            df[col] = le.fit_transform(df[col])
-            le_dict[col] = le
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col])
+        le_dict[col] = le
 
     return df, le_dict
 
