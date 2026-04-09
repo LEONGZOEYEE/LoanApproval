@@ -330,3 +330,4 @@ def main():
                 st.info("📌 Model decision: Applicant is likely safe for loan approval")
             else:
                 st.info("📌 Model decision: Applicant is considered risky")
+                main()
