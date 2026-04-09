@@ -101,8 +101,13 @@ def risk_score(df):
 def main():
     st.set_page_config(layout="wide")
 
-    st.title("🏦 Personal Loan Approval Prediction System")
-    st.caption("Smart AI-based loan approval decision system")
+    # =========================
+    # HEADER
+    # =========================
+    st.markdown("## 🏦 Personal Loan Approval System")
+    st.markdown("Simple AI system to predict loan approval using SVM, KNN, and ANN")
+
+    st.divider()
 
     df, le_dict = load_data()
 
@@ -119,7 +124,141 @@ def main():
     results = evaluate(models, X_test, y_test)
 
     best_model = max(results.items(), key=lambda x: x[1]["accuracy"])[0]
+
     st.success(f"🏆 Best Model: {best_model}")
+
+    st.divider()
+
+    # =========================
+    # DASHBOARD
+    # =========================
+    st.markdown("### 📊 Model Performance")
+
+    tabs = st.tabs(["SVM", "KNN", "ANN"])
+
+    for i, name in enumerate(["SVM", "KNN", "ANN"]):
+        with tabs[i]:
+            res = results[name]
+
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Accuracy", f"{res['accuracy']*100:.2f}%")
+            col2.metric("Precision", f"{res['precision']:.2f}")
+            col3.metric("Recall", f"{res['recall']:.2f}")
+            col4.metric("F1 Score", f"{res['f1']:.2f}")
+
+            st.markdown("**Confusion Matrix**")
+            fig, ax = plt.subplots()
+            sns.heatmap(res["cm"], annot=True, fmt="d", cmap="Blues", ax=ax)
+            st.pyplot(fig)
+
+    st.divider()
+
+    # =========================
+    # INPUT SECTION
+    # =========================
+    st.markdown("### 📝 Applicant Information")
+
+    with st.container():
+        with st.form("form"):
+            cols = st.columns(3)
+            data = {}
+
+            for i, col in enumerate(X.columns):
+                if col == "Debt_Income_Ratio":
+                    continue
+
+                with cols[i % 3]:
+                    if col in le_dict:
+                        val = st.selectbox(col, le_dict[col].classes_)
+                        data[col] = le_dict[col].transform([val])[0]
+                    else:
+                        data[col] = st.number_input(col, value=int(df[col].mean()), step=1)
+
+            selected_model = st.selectbox("Select Model", list(models.keys()))
+
+            submit = st.form_submit_button("🚀 Predict")
+
+    # =========================
+    # PREDICTION
+    # =========================
+    if submit:
+        input_df = pd.DataFrame([data])
+
+        input_df["Debt_Income_Ratio"] = (
+            input_df["Outstanding_Debt"] / (input_df["Annual_Income"] + 1)
+        )
+
+        input_df = input_df[X.columns]
+        scaled = scaler.transform(input_df)
+
+        model = models[selected_model]
+
+        prob = model.predict_proba(scaled)[0][1]
+        pred = model.predict(scaled)[0]
+
+        st.divider()
+
+        # =========================
+        # RESULT SECTION
+        # =========================
+        st.markdown("### 🔍 Prediction Result")
+
+        c1, c2 = st.columns(2)
+        c1.metric("Approval Probability", f"{prob*100:.2f}%")
+        c2.progress(float(prob))
+
+        if pred == 1:
+            st.success("✅ Loan Approved")
+        else:
+            st.error("❌ Loan Rejected")
+
+        # =========================
+        # RISK
+        # =========================
+        st.markdown("### ⚠️ Risk Score")
+        r = risk_score(input_df)
+        st.metric("Risk Level", f"{r}/100")
+
+        # =========================
+        # COMPARE MODELS
+        # =========================
+        st.markdown("### 🔄 Model Comparison")
+
+        comparison = {}
+        for m in models:
+            comparison[m] = models[m].predict_proba(scaled)[0][1]
+
+        st.bar_chart(pd.DataFrame.from_dict(comparison, orient="index"))
+
+        # =========================
+        # EXPLANATION
+        # =========================
+        st.markdown("### 🧠 Explanation")
+
+        reasons = []
+
+        if input_df["Credit_Score"].iloc[0] < 600:
+            reasons.append("⚠️ Low credit score")
+
+        if input_df["Debt_Income_Ratio"].iloc[0] > 0.4:
+            reasons.append("⚠️ High debt ratio")
+
+        if input_df["Existing_Loans"].iloc[0] > 3:
+            reasons.append("⚠️ Too many loans")
+
+        if input_df["Annual_Income"].iloc[0] > 60000:
+            reasons.append("✅ Strong income")
+
+        if input_df["Loan_History"].iloc[0] == 1:
+            reasons.append("✅ Good history")
+
+        for r in reasons:
+            st.write(r)
+
+        if pred == 1:
+            st.info("📌 Low risk applicant")
+        else:
+            st.info("📌 High risk applicant")
 
     # =========================
     # MODEL TABS
