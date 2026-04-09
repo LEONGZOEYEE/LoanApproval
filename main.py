@@ -95,13 +95,28 @@ def risk_score(df):
 
     return min(score, 100)
 
+
+st.markdown("""
+<style>
+.big-title {
+    font-size: 30px;
+    font-weight: bold;
+}
+.section {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+</style>
+""", unsafe_allow_html=True)
 def main():
     st.set_page_config(layout="wide")
 
     # =========================
     # HEADER
     # =========================
-    st.markdown("## 🏦 Personal Loan Approval System")
+    st.markdown('<div class="big-title">🏦 Personal Loan Approval System</div>', unsafe_allow_html=True)
     st.markdown("Simple AI system to predict loan approval using SVM, KNN, and ANN")
 
     st.divider()
@@ -130,6 +145,7 @@ def main():
     # DASHBOARD
     # =========================
     st.markdown("### 📊 Model Performance")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     tabs = st.tabs(["SVM", "KNN", "ANN"])
 
@@ -154,6 +170,7 @@ def main():
     # INPUT SECTION
     # =========================
     st.markdown("### 📝 Applicant Information")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     with st.container():
         with st.form("form"):
