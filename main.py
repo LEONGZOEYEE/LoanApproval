@@ -95,30 +95,14 @@ def risk_score(df):
 
     return min(score, 100)
 
-st.markdown("""
-<style>
-.big-title {
-    font-size: 30px;
-    font-weight: bold;
-}
-.section {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-}
-</style>
-""", unsafe_allow_html=True)
+# =========================
+# MAIN
+# =========================
 def main():
     st.set_page_config(layout="wide")
 
-    # =========================
-    # HEADER
-    # =========================
-    st.markdown('<div class="big-title">🏦 Personal Loan Approval System</div>', unsafe_allow_html=True)
-    st.markdown("Simple AI system to predict loan approval using SVM, KNN, and ANN")
-
-    st.divider()
+    st.title("🏦 Personal Loan Approval Prediction System")
+    st.caption("Smart AI-based loan approval decision system")
 
     df, le_dict = load_data()
 
@@ -135,92 +119,92 @@ def main():
     results = evaluate(models, X_test, y_test)
 
     best_model = max(results.items(), key=lambda x: x[1]["accuracy"])[0]
-
     st.success(f"🏆 Best Model: {best_model}")
 
-    st.divider()
+    # =========================
+    # MODEL TABS
+    # =========================
+    st.subheader("📊 Model Dashboard")
+
+    tabs = st.tabs(["🟢 SVM", "🔵 KNN", "🟣 ANN"])
 
     # =========================
-    # DASHBOARD
+    # EACH TAB
     # =========================
-    st.markdown("### 📊 Model Performance")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    tabs = st.tabs(["SVM", "KNN", "ANN"])
-
     for i, name in enumerate(["SVM", "KNN", "ANN"]):
         with tabs[i]:
+            model = models[name]
             res = results[name]
 
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Accuracy", f"{res['accuracy']*100:.2f}%")
-            col2.metric("Precision", f"{res['precision']:.2f}")
-            col3.metric("Recall", f"{res['recall']:.2f}")
-            col4.metric("F1 Score", f"{res['f1']:.2f}")
+            # Metrics
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Accuracy", f"{res['accuracy']*100:.2f}%")
+            c2.metric("Precision", f"{res['precision']:.2f}")
+            c3.metric("Recall", f"{res['recall']:.2f}")
+            c4.metric("F1", f"{res['f1']:.2f}")
 
-            st.markdown("**Confusion Matrix**")
+            # Confusion Matrix
             fig, ax = plt.subplots()
             sns.heatmap(res["cm"], annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
 
-    st.divider()
-
     # =========================
-    # INPUT SECTION
+    # FORM INPUT (GLOBAL)
     # =========================
-    st.markdown("### 📝 Applicant Information")
-    st.markdown('</div>', unsafe_allow_html=True) 
+    st.subheader("🔧 Applicant Information")
 
-    with st.container():
-        with st.form("form"):
-            cols = st.columns(3)
-            data = {}
+    with st.form("form"):
+        data = {}
 
-            for i, col in enumerate(X.columns):
-                if col == "Debt_Income_Ratio":
-                    continue
+        for col in X.columns:
+            if col == "Debt_Income_Ratio":
+                continue
+            elif col in le_dict:
+                val = st.selectbox(col, le_dict[col].classes_)
+                data[col] = le_dict[col].transform([val])[0]
+            else:
+                data[col] = st.number_input(col, value=int(df[col].mean()), step=1)
 
-                with cols[i % 3]:
-                    if col in le_dict:
-                        val = st.selectbox(col, le_dict[col].classes_)
-                        data[col] = le_dict[col].transform([val])[0]
-                    else:
-                        data[col] = st.number_input(col, value=int(df[col].mean()), step=1)
+        # MODEL SELECTION
+        selected_model = st.selectbox("Select Model", list(models.keys()))
 
-            selected_model = st.selectbox("Select Model", list(models.keys()))
+        submit = st.form_submit_button("🚀 Predict")
 
-            submit = st.form_submit_button("🚀 Predict")
+    input_df = pd.DataFrame([data])
+
+    # auto compute ratio (IMPORTANT)
+    input_df["Debt_Income_Ratio"] = (
+        input_df["Outstanding_Debt"] / (input_df["Annual_Income"] + 1)
+    )
 
     # =========================
     # PREDICTION
     # =========================
     if submit:
+        # recreate input
         input_df = pd.DataFrame([data])
 
+        # ✅ ALWAYS recompute ratio AFTER creating dataframe
         input_df["Debt_Income_Ratio"] = (
             input_df["Outstanding_Debt"] / (input_df["Annual_Income"] + 1)
         )
 
+        st.write(f"Calculated Debt-Income Ratio: {input_df['Debt_Income_Ratio'].iloc[0]:.2f}")
+
+        # ✅ ensure column order matches training
         input_df = input_df[X.columns]
+
         scaled = scaler.transform(input_df)
 
         model = models[selected_model]
 
         prob = model.predict_proba(scaled)[0][1]
         pred = model.predict(scaled)[0]
+        
+        st.subheader("🔍 Prediction Result")
 
-        st.divider()
-
-        # =========================
-        # RESULT SECTION
-        # =========================
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown("### 🔍 Prediction Result")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        c1, c2 = st.columns(2)
-        c1.metric("Approval Probability", f"{prob*100:.2f}%")
-        c2.progress(float(prob))
+        st.metric("Approval Probability", f"{prob*100:.2f}%")
+        st.progress(float(prob))
 
         if pred == 1:
             st.success("✅ Loan Approved")
@@ -230,14 +214,15 @@ def main():
         # =========================
         # RISK
         # =========================
-        st.markdown("### ⚠️ Risk Score")
+        st.subheader("⚠️ Risk Score")
+
         r = risk_score(input_df)
         st.metric("Risk Level", f"{r}/100")
 
         # =========================
         # COMPARE MODELS
         # =========================
-        st.markdown("### 🔄 Model Comparison")
+        st.subheader("🔄 Compare Models")
 
         comparison = {}
         for m in models:
@@ -248,29 +233,40 @@ def main():
         # =========================
         # EXPLANATION
         # =========================
-        st.markdown("### 🧠 Explanation")
+        st.subheader("🧠 Explanation")
 
         reasons = []
 
+        # Key rules based on domain knowledge
         if input_df["Credit_Score"].iloc[0] < 600:
-            reasons.append("⚠️ Low credit score")
+            reasons.append("⚠️ Low credit score increases risk")
 
         if input_df["Debt_Income_Ratio"].iloc[0] > 0.4:
-            reasons.append("⚠️ High debt ratio")
+            reasons.append("⚠️ High debt-to-income ratio")
 
         if input_df["Existing_Loans"].iloc[0] > 3:
-            reasons.append("⚠️ Too many loans")
+            reasons.append("⚠️ Too many existing loans")
 
         if input_df["Annual_Income"].iloc[0] > 60000:
-            reasons.append("✅ Strong income")
+            reasons.append("✅ Strong income supports approval")
 
         if input_df["Loan_History"].iloc[0] == 1:
-            reasons.append("✅ Good history")
+            reasons.append("✅ Good loan repayment history")
 
-        for r in reasons:
-            st.write(r)
+        # Show results
+        if len(reasons) == 0:
+            st.write("✅ Applicant has balanced financial profile")
+        else:
+            for r in reasons:
+                st.write(r)
 
         if pred == 1:
-            st.info("📌 Low risk applicant")
+            st.info("📌 Model decision: Applicant is likely safe for loan approval")
         else:
-            st.info("📌 High risk applicant")
+            st.info("📌 Model decision: Applicant is considered risky")
+
+# =========================
+# RUN
+# =========================
+if __name__ == "__main__":
+    main()
